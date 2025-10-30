@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Birthday Animation</title>
+  <style>
+    /* Basic reset & layout */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html,body { height:100%; }
+    body {
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow: hidden;
+    }
+
+    /* Background gradient like tailwind: from-pink-400 via-purple-500 to-indigo-600 */
+    .bg {
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, #fb7185 0%, #8b5cf6 50%, #6366f1 100%);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Container for content */
+    .content {
+      position: relative;
+      z-index: 10;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    /* Gift icon block */
+    .icon-wrap { display:inline-block; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+      border: none;
+      cursor: pointer;
+      border-radius: .5rem;
+      font-weight: 800;
+    }
+    .btn.start {
+      background: #fff;
+      color: #6b21a8;
+      padding: 1.25rem 3rem;
+      font-size: 1.25rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+    }
+    .btn.start:hover { background:#fde68a; color:#6b21a8; }
+
+    .btn.replay {
+      background:#fff;
+      color:#6b21a8;
+      padding: .8rem 2rem;
+      font-size: 1.1rem;
+      font-weight: 800;
+      border-radius: .5rem;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.12);
+    }
+    .btn.replay:hover { background:#fde68a; color:#6b21a8; }
+
+    /* Headings */
+    h1.large { color:#fff; text-shadow: 0 6px 18px rgba(0,0,0,0.35); font-size:3rem; font-weight:900; margin-bottom:1.5rem; }
+    @media(min-width:768px){ h1.large { font-size:4rem; } }
+    .main-words h1 { color:#fff; text-shadow:0 10px 30px rgba(0,0,0,0.45); font-size:3.75rem; font-weight:900; margin: .5rem 0; }
+    @media(min-width:768px){ .main-words h1 { font-size:5rem; } }
+
+    /* Image card */
+    .image-card { margin-top:1.5rem; display:inline-block; border-radius:1rem; overflow:hidden; border:4px solid #fff; box-shadow: 0 30px 60px rgba(0,0,0,0.35); }
+    .image-card img { height:16rem; width:auto; display:block; object-fit:cover; }
+    @media(min-width:768px){ .image-card img{ height:20rem; } }
+
+    /* Floating hearts container */
+    .hearts { margin-top:2rem; display:flex; gap: .75rem; justify-content:center; align-items:center; }
+
+    /* Icons sizing */
+    .svg-lg { width:8rem; height:8rem; display:block; color:#fff; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.45)); }
+
+    /* Stars (animated dots) */
+    .stars { position:absolute; inset:0; z-index:1; pointer-events:none; }
+    .star {
+      position:absolute;
+      width:8px; height:8px; border-radius:50%;
+      background:#fbe68a;
+      opacity:0;
+      transform:scale(0);
+      animation: starPulse 2s ease-in-out infinite;
+    }
+    @keyframes starPulse {
+      0% { opacity:0; transform:scale(0); }
+      25% { opacity:1; transform:scale(1); }
+      50% { opacity:0.6; transform:scale(0.7); }
+      100% { opacity:0; transform:scale(0); }
+    }
+
+    /* Confetti pieces */
+    .confetti { position:absolute; z-index:5; pointer-events:none; }
+    .confetti .piece { width:10px; height:10px; border-radius:2px; position:absolute; transform-origin:center; }
+    /* falling animation; durations/delays set inline in JS for randomness */
+    @keyframes confettiFall {
+      0% { transform: translateY(-20px) rotate(0deg); opacity:1; }
+      100% { transform: translateY(120vh) rotate(720deg); opacity:0.9; }
+    }
+
+    /* Balloons */
+    .balloon { position:absolute; width:64px; height:80px; border-radius:50% 50% 45% 45%; display:flex; align-items:flex-end; justify-content:center; opacity:0.95; box-shadow:0 8px 30px rgba(0,0,0,0.25); }
+    .balloon .string { width:2px; height:40px; background:#333; margin-bottom:-20px; opacity:0.8; }
+    @keyframes balloonRise {
+      0% { transform: translateY(120vh) scale(0); opacity:0; }
+      30% { transform: translateY(30vh) scale(1); opacity:1; }
+      100% { transform: translateY(-40vh) scale(1.05); opacity:1; }
+    }
+
+    /* Candle flames */
+    .candle-flame {
+      position:absolute;
+      width:8px; height:32px;
+      border-radius:6px;
+      background: linear-gradient(to top, #f59e0b, #f97316);
+      transform-origin:center bottom;
+      opacity:0.95;
+    }
+    /* flame scaleY animation */
+    @keyframes flameFlicker {
+      0% { transform: scaleY(1); opacity:0.8; }
+      50% { transform: scaleY(1.3); opacity:1; }
+      100% { transform: scaleY(1); opacity:0.8; }
+    }
+
+    /* Sparkles */
+    .sparkles { display:flex; gap:1rem; justify-content:center; margin-top:1rem; }
+    .sparkle { width:40px; height:40px; display:inline-block; filter:drop-shadow(0 8px 20px rgba(0,0,0,0.25)); }
+    @keyframes sparkleScaleRotate {
+      0% { transform: scale(1) rotate(0deg); }
+      50% { transform: scale(1.5) rotate(180deg); }
+      100% { transform: scale(1) rotate(360deg); }
+    }
+
+    /* Floating particles */
+    .particles { position:absolute; inset:0; z-index:2; pointer-events:none; }
+    .particle { position:absolute; width:10px; height:10px; border-radius:50%; background:#fff; opacity:0.25; }
+
+    /* visibility toggles */
+    .hidden { display:none; }
+
+    /* small utility */
+    .mt-12 { margin-top:3rem; }
+
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+
+  <!-- Stars (animated background) -->
+  <div class="stars" id="stars"></div>
+
+  <!-- Confetti container -->
+  <div class="confetti" id="confetti"></div>
+
+  <!-- Balloons container -->
+  <div id="balloons"></div>
+
+  <!-- Floating particles -->
+  <div class="particles" id="particles"></div>
+
+  <!-- Main content -->
+  <div class="content" id="mainContent">
+    <!-- Start screen -->
+    <div id="startScreen" class="text-center">
+      <div class="icon-wrap" id="giftIconWrap">
+        <!-- Gift SVG (approximation of lucide Gift) -->
+        <svg class="svg-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="7" width="18" height="13" rx="2" ry="2" stroke="white" fill="rgba(255,255,255,0.08)"/>
+          <path d="M12 7v13" stroke="white"/>
+          <path d="M12 7c0-2.5 2-4 3.5-4 1.5 0 2.5 1 2.5 2.5S17.5 8 15.5 8H12z" stroke="white" fill="rgba(255,255,255,0.04)"/>
+          <path d="M12 7c0-2.5-2-4-3.5-4C7 3 6 4 6 5.5S7.5 8 9.5 8H12z" stroke="white" fill="rgba(255,255,255,0.04)"/>
+        </svg>
+      </div>
+
+      <h1 class="large">Ada Kejutan Untukmu!</h1>
+
+      <button class="btn start" id="startBtn" aria-label="Buka Kejutan">
+        <!-- Party popper icon (simple) -->
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="margin-right:.5rem" aria-hidden="true">
+          <path d="M2 22l7-3 9-9 3-7-11 11-8 8z" fill="#ff7ab6" />
+        </svg>
+        <span style="display:inline-flex; align-items:center;">Buka Kejutan</span>
+      </button>
+    </div>
+
+    <!-- Birthday screen (hidden initially) -->
+    <div id="birthdayScreen" class="hidden">
+      <!-- Cake area -->
+      <div id="cakeArea" style="margin-bottom:2.5rem;">
+        <!-- Cake SVG -->
+        <div style="display:inline-block; position:relative;">
+          <svg class="svg-lg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <!-- Base cake -->
+            <rect x="6" y="22" width="52" height="26" rx="4" fill="white" opacity="0.12" />
+            <rect x="10" y="30" width="44" height="18" rx="3" fill="white" opacity="0.18" />
+            <!-- icing -->
+            <path d="M10 30c6-6 18-6 24 0s18 0 24-6" stroke="white" stroke-width="1.5" fill="rgba(255,255,255,0.06)"/>
+          </svg>
+
+          <!-- Candle flames (we'll create 3 via JS) -->
+        </div>
+      </div>
+
+      <!-- Main birthday text (Selamat Ulang Tahun Mima Zein each as own h1) -->
+      <div class="main-words" id="wordContainer">
+        <!-- JS will insert five h1s with the same words & animation delays -->
+      </div>
+
+      <!-- Sparkles -->
+      <div class="sparkles" id="sparkleWrap" aria-hidden="true">
+        <!-- JS will create 5 sparkles (SVG) and animate them -->
+      </div>
+
+      <!-- Subtitle -->
+      <p id="subtitle" style="margin-top:1.5rem; color:#fff; font-size:1.25rem; font-weight:600; text-shadow:0 10px 30px rgba(0,0,0,0.35);">
+        Semoga panjang umur dan selalu bahagia! 🎉
+      </p>
+
+      <!-- Birthday Image -->
+      <div style="margin-top:1.5rem; display:flex; justify-content:center;">
+        <div class="image-card">
+          <img src="/image.jpeg" alt="Birthday celebration photo of Mima Zein smiling with colorful decorations and festive atmosphere" id="birthdayImage">
+        </div>
+      </div>
+
+      <!-- Floating Hearts -->
+      <div class="mt-12 hearts" id="heartsWrap" aria-hidden="true">
+        <!-- JS creates hearts and animates them -->
+      </div>
+
+      <!-- Replay Button -->
+      <div style="margin-top:2rem;">
+        <button class="btn replay" id="replayBtn">Ulangi Animasi</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* Recreate functionality from React version with plain JS + CSS animations.
+       Behavior parity:
+       - "start" toggles: show confetti, generate balloons (15), show cake, words (Selamat Ulang Tahun Mima Zein each animating sequentially), sparkles (5), floating hearts (5), particle dots, stars (30)
+       - Replay resets state to initial
+    */
+
+    (function(){
+      // elements
+      const startBtn = document.getElementById('startBtn');
+      const startScreen = document.getElementById('startScreen');
+      const birthdayScreen = document.getElementById('birthdayScreen');
+      const confettiEl = document.getElementById('confetti');
+      const balloonsEl = document.getElementById('balloons');
+      const starsEl = document.getElementById('stars');
+      const particlesEl = document.getElementById('particles');
+      const wordContainer = document.getElementById('wordContainer');
+      const sparkleWrap = document.getElementById('sparkleWrap');
+      const heartsWrap = document.getElementById('heartsWrap');
+      const replayBtn = document.getElementById('replayBtn');
+      const cakeArea = document.getElementById('cakeArea');
+
+      let isStarted = false;
+
+      // helper random
+      function rnd(min, max){ return Math.random()*(max-min)+min; }
+      function rndInt(min,max){ return Math.floor(rnd(min,max+1)); }
+
+      // create stars
+      function createStars(){
+        starsEl.innerHTML = '';
+        const count = 30;
+        for(let i=0;i<count;i++){
+          const s = document.createElement('div');
+          s.className = 'star';
+          const x = rnd(0, window.innerWidth - 8);
+          const y = rnd(0, window.innerHeight - 8);
+          s.style.left = x + 'px';
+          s.style.top = y + 'px';
+          s.style.animationDelay = (rnd(0,2)) + 's';
+          s.style.animationDuration = (2 + rnd(0,2)) + 's';
+          starsEl.appendChild(s);
+        }
+      }
+
+      // create confetti pieces
+      function createConfetti(){
+        confettiEl.innerHTML = '';
+        const count = 50;
+        const colors = ["#FF6B6B","#4ECDC4","#FFD93D","#95E1D3","#F38181","#AA96DA"];
+        for(let i=0;i<count;i++){
+          const p = document.createElement('div');
+          p.className = 'piece';
+          p.style.left = (rnd(0, window.innerWidth)) + 'px';
+          p.style.top = (-rnd(0, 200)) + 'px';
+          p.style.background = colors[rndInt(0, colors.length-1)];
+          const dur = (3 + rnd(0,2)).toFixed(2) + 's';
+          const delay = rnd(0,2).toFixed(2) + 's';
+          p.style.animation = `confettiFall ${dur} linear infinite`;
+          p.style.animationDelay = delay;
+          // horizontal translation variation via transform inside keyframes handled by JS: add small translateX offset
+          p.style.transform = `translateX(${(rnd(-100,100))}px)`;
+          confettiEl.appendChild(p);
+        }
+      }
+
+      // create balloons
+      function createBalloons(){
+        balloonsEl.innerHTML = '';
+        const count = 15;
+        const colors = ["#FF6B9D","#C44569","#FEA47F","#F97F51","#55E6C1","#B8E994"];
+        for(let i=0;i<count;i++){
+          const b = document.createElement('div');
+          b.className = 'balloon';
+          const color = colors[i % colors.length];
+          b.style.background = color;
+          // position X random
+          const left = rnd(0, window.innerWidth - 80);
+          b.style.left = left + 'px';
+          // initial Y offscreen bottom via inline transform animation
+          const delay = rnd(0,3).toFixed(2) + 's';
+          const dur = (8 + rnd(0,4)).toFixed(2) + 's';
+          b.style.animation = `balloonRise ${dur} ease-in-out ${delay} infinite`;
+          // horizontal oscillation via CSS animation using transformX in addition to animation; we'll set a CSS variable and use JS interval to vary small x with sin
+          b.dataset.seed = rnd(0,10000);
+          // string
+          const s = document.createElement('div'); s.className = 'string';
+          b.appendChild(s);
+          // small bottom notch to mimic the original inner vertical stripe
+          balloonsEl.appendChild(b);
+        }
+      }
+
+      // create particles (floating white dots)
+      function createParticles(){
+        particlesEl.innerHTML = '';
+        const count = 20;
+        for(let i=0;i<count;i++){
+          const p = document.createElement('div');
+          p.className = 'particle';
+          p.style.left = rnd(0, window.innerWidth) + 'px';
+          p.style.top = rnd(0, window.innerHeight) + 'px';
+          const dur = (10 + rnd(0,10)).toFixed(2) + 's';
+          const delay = rnd(0,5).toFixed(2) + 's';
+          // animate via transition loop
+          (function animateParticle(el, dur){
+            el.animate([
+              { transform: `translate(${rnd(-80,80)}px, ${rnd(-80,80)}px)` },
+              { transform: `translate(${rnd(-80,80)}px, ${rnd(-80,80)}px)` }
+            ], { duration: dur*1000, iterations: Infinity, direction:'alternate', easing:'linear', delay: rnd(0,5)*1000 });
+          })(p, (10 + rnd(0,10)));
+          particlesEl.appendChild(p);
+        }
+      }
+
+      // create words (Selamat Ulang Tahun Mima Zein) with staggered animation
+      function createWords(){
+        wordContainer.innerHTML = '';
+        const words = ["Selamat","Ulang","Tahun","Mima","Zein"];
+        words.forEach((w, idx) => {
+          const h = document.createElement('h1');
+          h.textContent = w;
+          h.style.opacity = 0;
+          h.style.transform = 'translateY(50px) scale(.5)';
+          h.className = 'word';
+          // delay stagger
+          setTimeout(()=> {
+            // animate via Web Animations API
+            h.animate([
+              { opacity:0, transform: 'translateY(50px) scale(.5)' },
+              { opacity:1, transform: 'translateY(0px) scale(1)' }
+            ], { duration: 700, easing: 'cubic-bezier(.2,.9,.2,1)', fill:'forwards' });
+          }, 500 + idx*250);
+          wordContainer.appendChild(h);
+        });
+      }
+
+      // create sparkles: 5 icons that rotate & scale
+      function createSparkles(){
+        sparkleWrap.innerHTML = '';
+        for(let i=0;i<5;i++){
+          const sp = document.createElement('div');
+          sp.className = 'sparkle';
+          sp.style.opacity = 0;
+          // simple star-like SVG
+          sp.innerHTML = `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="color:rgba(250,204,21,0.95)">
+            <path d="M12 2l1.9 4.3L18 8l-4 2.9L14 16l-2-2.1L10 16l.9-5.1L8 8l4.1-1.7z" fill="currentColor"/>
+          </svg>`;
+          sparkleWrap.appendChild(sp);
+          // animate with delay
+          setTimeout(()=> {
+            sp.animate([
+              { opacity:0, transform:'scale(1) rotate(0deg)' },
+              { opacity:1, transform:'scale(1.5) rotate(180deg)' },
+              { opacity:0.9, transform:'scale(1) rotate(360deg)' }
+            ], { duration: 2000, iterations: Infinity, delay: i*200, easing:'linear' });
+          }, 1000);
+        }
+      }
+
+      // create hearts floating (5)
+      function createHearts(){
+        heartsWrap.innerHTML = '';
+        for(let i=0;i<5;i++){
+          const span = document.createElement('span');
+          span.style.display = 'inline-block';
+          span.style.fontSize = '3rem';
+          span.style.opacity = 0;
+          span.textContent = '❤️';
+          heartsWrap.appendChild(span);
+          // animate with Web Animations API with random x offset
+          setTimeout(()=> {
+            span.animate([
+              { opacity:0, transform:`translateY(0px) translateX(0px)` },
+              { opacity:1, transform:`translateY(-100px) translateX(${(rnd(-50,50))}px)` },
+              { opacity:0, transform:`translateY(-160px) translateX(${(rnd(-80,80))}px)` }
+            ], { duration: 3000, iterations: Infinity, delay: i*600, easing:'cubic-bezier(.2,.9,.2,1)' });
+          }, 600 + i*200);
+        }
+      }
+
+      // create candle flames (3) and animate
+      function createCandleFlames(){
+        // compute cake SVG bounding box center to place candle flames
+        const cakeRect = cakeArea.getBoundingClientRect();
+        // place three flame DIVs absolutely on cake area's position
+        const parent = cakeArea;
+        // remove previous flames
+        Array.from(parent.querySelectorAll('.candle-flame')).forEach(n => n.remove());
+        [0,1,2].forEach((i)=>{
+          const f = document.createElement('div');
+          f.className = 'candle-flame';
+          // compute left positions across the inline-block cake; approximate percentages from original: left: 30% + i*25%
+          // We'll position relative to page center (since cake inline-block is centered)
+          const cakeCenterX = cakeRect.left + cakeRect.width/2;
+          // offset relative around center
+          const leftPercent = 30 + i*25; // as in original code
+          // but easier: compute left relative to cakeRect left
+          const left = cakeRect.left + cakeRect.width*(leftPercent/100) - 4; // -4 to center flame
+          f.style.left = (left) + 'px';
+          f.style.top = (cakeRect.top - cakeRect.height*0.06) + 'px';
+          // animate flicker
+          f.animate([
+            { transform:'scaleY(1)', opacity:0.8 },
+            { transform:'scaleY(1.3)', opacity:1 },
+            { transform:'scaleY(1)', opacity:0.8 }
+          ], { duration: 800, iterations: Infinity, delay: i*200, easing:'ease-in-out' });
+          document.body.appendChild(f);
+        });
+      }
+
+      // small update loop to provide horizontal sinusoidal movement for balloons
+      let balloonTicker = null;
+      function startBalloonTicker(){
+        if(balloonTicker) return;
+        balloonTicker = requestAnimationFrame(function tick(){
+          const nodes = document.querySelectorAll('#balloons .balloon');
+          nodes.forEach((b, idx) => {
+            const seed = parseFloat(b.dataset.seed || 0);
+            const t = Date.now()/1000 + seed;
+            const dx = Math.sin(t + idx) * 40; // +/- 40 px oscillation
+            b.style.transform = `translateX(${dx}px)`;
+          });
+          balloonTicker = requestAnimationFrame(tick);
+        });
+      }
+      function stopBalloonTicker(){
+        if(balloonTicker) cancelAnimationFrame(balloonTicker);
+        balloonTicker = null;
+      }
+
+      // Start animation
+      function startAnimation(){
+        if(isStarted) return;
+        isStarted = true;
+        // show birthday screen, hide start
+        startScreen.classList.add('hidden');
+        birthdayScreen.classList.remove('hidden');
+
+        // create items
+        createStars();
+        createConfetti();
+        createBalloons();
+        createParticles();
+        createWords();
+        createSparkles();
+        createHearts();
+
+        // candle flames after a tiny delay (so cakeArea layout calculated)
+        setTimeout(createCandleFlames, 250);
+
+        // start sinusoidal balloon movement
+        startBalloonTicker();
+      }
+
+      // Reset / Replay
+      function resetAnimation(){
+        // remove confetti/balloons/hearts/etc and go back to start screen
+        isStarted = false;
+        // remove candle flames
+        Array.from(document.querySelectorAll('.candle-flame')).forEach(n => n.remove());
+        confettiEl.innerHTML = '';
+        balloonsEl.innerHTML = '';
+        particlesEl.innerHTML = '';
+        starsEl.innerHTML = '';
+        wordContainer.innerHTML = '';
+        sparkleWrap.innerHTML = '';
+        heartsWrap.innerHTML = '';
+        stopBalloonTicker();
+
+        // show start screen
+        birthdayScreen.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+      }
+
+      // wire up buttons
+      startBtn.addEventListener('click', startAnimation);
+      replayBtn.addEventListener('click', () => {
+        resetAnimation();
+        // small timeout to re-run start to mimic user clicking "Buka Kejutan" again, but we keep to user intent: on replay user wants to start again
+        setTimeout(startAnimation, 80);
+      });
+
+      // initial set up: nothing visible except start screen
+      // also listen for resize to reposition candle flames if visible
+      window.addEventListener('resize', ()=>{
+        if(isStarted){
+          // recreate certain layout dependent items
+          createStars();
+          // reposition flames
+          Array.from(document.querySelectorAll('.candle-flame')).forEach(n => n.remove());
+          setTimeout(createCandleFlames, 120);
+        }
+      });
+
+      // Create a subtle floating particles initially even before start (mirrors original pointer-events-none absolute inset)
+      createParticles();
+
+      // Accessibility: allow Enter on start button
+      startBtn.addEventListener('keyup', (e) => { if(e.key === 'Enter') startAnimation(); });
+      replayBtn.addEventListener('keyup', (e) => { if(e.key === 'Enter') { resetAnimation(); setTimeout(startAnimation,80); } });
+
+      // Ensure initial dimensions are stable
+      window.requestAnimationFrame(()=>{ /* noop to allow initial paints */ });
+    })();
+  </script>
+</body>
+</html>
